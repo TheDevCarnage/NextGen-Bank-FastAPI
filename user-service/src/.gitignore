@@ -9,7 +9,8 @@ __pycache__/
 .vscode
 .DS_Store
 .idea
-
+.envs/*
+!.envs/.env.example
 # C extensions
 *.so
 
