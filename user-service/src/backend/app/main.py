@@ -8,7 +8,8 @@ from .core.config import settings
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
-    yield  
+    yield
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,

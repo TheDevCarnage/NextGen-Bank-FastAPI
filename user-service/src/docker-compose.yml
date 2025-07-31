@@ -7,7 +7,7 @@ services:
       - "5432:5432"
     volumes:
       - nextgen_local_db:/var/lib/postgresql/data
-    env_file: 
+    env_file:
       - ./.envs/.env.local
     networks:
       - nextgen_local_nw
