@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -o errrexit
+set -o errexit
 set -o nounset
 set -o pipefail
 
