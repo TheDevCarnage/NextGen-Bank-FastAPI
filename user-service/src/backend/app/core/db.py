@@ -1,6 +1,6 @@
 from typing import AsyncGenerator
-from app.core.config import settings
-from app.core.logging import get_logger
+from backend.app.core.config import settings
+from backend.app.core.logging import get_logger
 from sqlmodel.ext.asyncio.session import AsyncSession
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
