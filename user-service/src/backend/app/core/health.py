@@ -1,13 +1,13 @@
 import asyncio
-
-from enum import Enum
-from sqlalchemy import text
-from typing import Dict, Any, Callable, Awaitable, Optional
 from datetime import datetime, timedelta, timezone
-from backend.app.core.db import async_session
-from backend.app.core.celery_app import celery_app
-from backend.app.core.logging import get_logger
+from enum import Enum
+from typing import Any, Awaitable, Callable, Dict, Optional
 
+from sqlalchemy import text
+
+from backend.app.core.celery_app import celery_app
+from backend.app.core.db import async_session
+from backend.app.core.logging import get_logger
 
 logger = get_logger()
 
@@ -22,7 +22,6 @@ class ServiceStatus(str, Enum):
 
 class HealthCheck:
     def __init__(self):
-
         self._services: Dict[str, ServiceStatus] = {}
         self._check_functions: Dict[str, Callable[[], Awaitable[bool]]] = {}
         self._last_check: Dict[str, datetime] = {}
@@ -36,7 +35,9 @@ class HealthCheck:
         self._cached_status: Optional[Dict[str, Any]] = None
         self._last_check_time: Optional[datetime] = None
 
-    async def validate_dependencies(self, service_name: str, depends_on: list[str]):
+    async def validate_dependencies(
+        self, service_name: str, depends_on: list[str]
+    ) -> None:
         if not depends_on:
             return
 
@@ -55,7 +56,6 @@ class HealthCheck:
         max_retries: int = 3,
         depends_on: list[str] | None = None,
     ) -> None:
-
         self._services[service_name] = ServiceStatus.STARTING
         self._check_functions[service_name] = check_function
         self._timeouts[service_name] = timeout
@@ -67,21 +67,21 @@ class HealthCheck:
             await self.validate_dependencies(service_name, depends_on)
             self._dependencies[service_name] = set(depends_on)
             logger.info(
-                f"Service {service_name} registered with dependencies {depends_on}"
+                f"Service '{service_name}' registered with dependencies: {depends_on}"
             )
 
     async def check_database(self) -> bool:
         try:
-            # TODO load models
-            # TODO add log info
-
+            # TODO: load models
+            # TODO: add logger info
             async with async_session() as session:
                 await session.execute(text("SELECT 1"))
                 await session.commit()
+
                 self._last_check["database"] = datetime.now(timezone.utc)
                 return True
         except Exception as e:
-            logger.error(f"Database health check failed: {str(e)}")
+            logger.error(f"Database health check failed: {e}")
             return False
 
     async def check_redis(self) -> bool:
@@ -91,10 +91,10 @@ class HealthCheck:
             self._last_check["redis"] = datetime.now(timezone.utc)
             return True
         except Exception as e:
-            logger.error(f"Redis health check failed: {str(e)}")
+            logger.error(f"Redis health check failed: {e}")
             return False
 
-    async def check_redis(self) -> bool:
+    async def check_celery(self) -> bool:
         try:
             inspect = celery_app.control.inspect()
             workers = inspect.ping()
@@ -103,25 +103,25 @@ class HealthCheck:
                 conn = celery_app.connection()
                 try:
                     conn.ensure_connection(max_retries=3)
-                    self._last_check["redis"] = datetime.now(timezone.utc)
-                    logger.warning(
-                        "No celery workers found, but RabbitMQ is working reachable"
-                    )
+                    logger.warning("No celery workers found, but Rabbitmq is reachable")
+                    self._last_check["celery"] = datetime.now(timezone.utc)
                     return True
                 finally:
                     conn.close()
-            self._last_check["redis"] = datetime.now(timezone.utc)
+
+            self._last_check["celery"] = datetime.now(timezone.utc)
             return True
         except Exception as e:
-            logger.error(f"Celery health check failed: {str(e)}")
+            logger.error(f"Celery health check failed: {e}")
             return False
 
     async def check_service_health(
         self, service_name: str, max_retries: int = 3
     ) -> ServiceStatus:
         if service_name in self._dependencies:
-            for dep in self._dependencies:
+            for dep in self._dependencies[service_name]:
                 dep_status = await self.check_service_health(dep)
+
                 if dep_status != ServiceStatus.HEALTHY:
                     logger.error(
                         f"Dependency {dep} not healthy for service {service_name}"
@@ -129,8 +129,7 @@ class HealthCheck:
                     return ServiceStatus.DEGRADED
 
         if service_name not in self._check_functions:
-            raise ValueError(f"unknown service: {service_name}")
-
+            raise ValueError(f"Unknown service: {service_name}")
         check_func = self._check_functions[service_name]
         timeout = self._timeouts.get(service_name, 5.0)
         max_retries = self._max_retries[service_name]
@@ -153,12 +152,13 @@ class HealthCheck:
                                 logger.info(
                                     f"Service {service_name} recovered after {metrics['attempts']} attempts"
                                 )
-
                         return ServiceStatus.HEALTHY
+
                     async with self._lock:
                         self._services[service_name] = ServiceStatus.DEGRADED
+
             except asyncio.TimeoutError:
-                metrics["last_error"] = f"Timeout after {timeout}"
+                metrics["last_error"] = f"Timout after {timeout}s"
                 if attempt == max_retries - 1:
                     logger.warning(
                         f"Health check timeout for {service_name} after all retries"
@@ -166,34 +166,32 @@ class HealthCheck:
             except Exception as e:
                 metrics["last_error"] = str(e)
                 if attempt == max_retries - 1:
-                    logger.error(f"Health check failed for {service_name}: {str(e)}")
+                    logger.error(f"Health check failed for {service_name}: {e}")
+
             metrics["total_delay"] += retry_delay
             await asyncio.sleep(retry_delay)
 
         async with self._lock:
             self._services[service_name] = ServiceStatus.UNHEALTHY
             logger.error(
-                f"Service {service_name} unhealthy after {max_retries} attempts:{metrics['last_error']}"
+                f"Service {service_name} unhealthy after {max_retries} attempts: {metrics['last_error']}"
             )
+
         return ServiceStatus.UNHEALTHY
 
     async def check_all_services(self) -> Dict[str, Any]:
         current_time = datetime.now(timezone.utc)
-
         if (
             self._cached_status is not None
             and self._last_check_time is not None
-            and (current_time - self._last_check_time) < self._cached_duration
+            and (current_time - self._last_check_time) < self._cache_duration
         ):
             return self._cached_status
 
         async with self._lock:
             services = list(self._services.keys())
-        tasks = [
-            self.check_service_health(service_name=service) for service in services
-        ]
-
-        results = asyncio.gather(*tasks, return_exceptions=True)
+        tasks = [self.check_service_health(service) for service in services]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
 
         health_status = {
             "status": ServiceStatus.HEALTHY,
@@ -231,17 +229,17 @@ class HealthCheck:
                 await asyncio.sleep(1)
             return False
         except Exception as e:
-            logger.error(f"Error waitinng for services: {str(e)}")
+            logger.error(f"Error waiting for services: {e}")
             return False
 
     async def cleanup(self) -> None:
         async with self._lock:
             self._services.clear()
             self._check_functions.clear()
+            self._last_check.clear()
             self._timeouts.clear()
-            self._last_check_time.clear()
-            self._max_retries.clear()
             self._retry_delays.clear()
+            self._max_retries.clear()
 
 
 health_checker = HealthCheck()

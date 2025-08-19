@@ -8,5 +8,4 @@ router = APIRouter(prefix="/home")
 
 @router.get("/ping")
 async def health_check():
-    logger.info(f"Health check API check and logging.")
     return "pong"
