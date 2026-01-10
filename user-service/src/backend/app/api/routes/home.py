@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from backend.app.core.logging import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger()
 
 router = APIRouter(prefix="/home")
 
