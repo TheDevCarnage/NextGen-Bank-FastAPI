@@ -1,3 +1,4 @@
+import uuid
 from enum import Enum
 from sqlmodel import SQLModel, Field
 from pydantic import EmailStr, field_validator
@@ -69,3 +70,22 @@ class UserCreateSchema(BaseUserSchema):
                 },
             )
         return v
+
+
+class userReadSchema(BaseUserSchema):
+    id: uuid.UUID
+    full_name: str
+
+
+class EmailRequestSchema(SQLModel):
+    email: EmailStr = Field(max_length=255)
+
+
+class LoginRequestSchema(SQLModel):
+    email: EmailStr
+    password: str = Field(min_length=8, max_length=40)
+
+
+class OTPVerificationRequestSchema(SQLModel):
+    email: EmailStr
+    otp: str = Field(min_length=6, max_length=6)
