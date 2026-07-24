@@ -4,7 +4,7 @@ from backend.app.core.emails.config import TEMPLATE_DIR
 from backend.app.core.emails.tasks import send_email_task
 from backend.app.core.logging import get_logger
 
-logger = get_logger(__name__)
+logger = get_logger()
 
 email_env = Environment(
     loader=FileSystemLoader(TEMPLATE_DIR),
@@ -36,7 +36,7 @@ class EmailTemplate:
             html_content = html_template.render(**context)
             plain_content = plain_template.render(**context)
 
-            task = send_email_task(
+            task = send_email_task.delay(
                 subject=subject_override or cls.subject,
                 recipients=recipients_list,
                 html_content=html_content,

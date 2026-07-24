@@ -1,3 +1,4 @@
+from email.policy import default
 import uuid
 from enum import Enum
 from sqlmodel import SQLModel, Field
@@ -43,7 +44,7 @@ class BaseUserSchema(SQLModel):
     username: str | None = Field(default=None, max_length=12, unique=True)
     email: EmailStr = Field(unique=True, index=True, max_length=255)
     first_name: str = Field(max_length=30)
-    middle_name: str | None = Field(max_length=30)
+    middle_name: str | None = Field(max_length=30, default=None)
     last_name: str = Field(max_length=30)
     id_no: int = Field(unique=True, gt=0)
     is_active: bool = False
@@ -72,7 +73,7 @@ class UserCreateSchema(BaseUserSchema):
         return v
 
 
-class userReadSchema(BaseUserSchema):
+class UserReadSchema(BaseUserSchema):
     id: uuid.UUID
     full_name: str
 

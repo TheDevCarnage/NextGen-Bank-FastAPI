@@ -20,4 +20,4 @@ email_conf = ConnectionConfig(
     TEMPLATE_FOLDER=TEMPLATE_DIR,
 )
 
-fastmail = FastMail(email_conf)
+fastamail = FastMail(email_conf)

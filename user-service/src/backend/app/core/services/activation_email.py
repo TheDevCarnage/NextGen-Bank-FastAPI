@@ -3,8 +3,8 @@ from backend.app.core.emails.base import EmailTemplate
 
 
 class ActivationEmail(EmailTemplate):
-    template_name = "activation_email.html"
-    template_name_plain = "activation_email.txt"
+    template_name = "activation.html"
+    template_name_plain = "activation.txt"
     subject = "Activate Your NextGen Banking Account"
 
 
@@ -19,4 +19,5 @@ async def send_activation_email(email: str, token: str) -> None:
         "support_email": settings.SUPPORT_EMAIL,
     }
 
+    # await the async send_email
     await ActivationEmail().send_email(email_to=email, context=context)
